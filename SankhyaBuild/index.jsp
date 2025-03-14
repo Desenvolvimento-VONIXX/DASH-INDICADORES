@@ -43,7 +43,7 @@
 <script src="https://cdn.jsdelivr.net/gh/wansleynery/SankhyaJX@main/jx.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Vite + React + TS</title>
-<script type="module" crossorigin src="${BASE_FOLDER}/assets/index-B5rLBI_L.js"></script>
+<script type="module" crossorigin src="${BASE_FOLDER}/assets/index-Do9rrL-N.js"></script>
 <link rel="stylesheet" crossorigin href="${BASE_FOLDER}/assets/index-_A6pxr2_.css">
 </head>
 <body>
