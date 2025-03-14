@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import "./App.css";
 import { ArrowLeft } from "lucide-react";
 import { Input } from "./components/ui/input";
+import { maskCurrency, unmaskCurrency } from "./lib/masks";
 
 interface Setor {
   ID: number;
@@ -40,10 +41,18 @@ interface IndicadoresOrganizados {
   };
 }
 const mesesNomes: { [key: string]: string } = {
-  "1": "JANEIRO", "2": "FEVEREIRO", "3": "MARÇO",
-  "4": "ABRIL", "5": "MAIO", "6": "JUNHO",
-  "7": "JULHO", "8": "AGOSTO", "9": "SETEMBRO",
-  "10": "OUTUBRO", "11": "NOVEMBRO", "12": "DEZEMBRO",
+  "1": "JANEIRO",
+  "2": "FEVEREIRO",
+  "3": "MARÇO",
+  "4": "ABRIL",
+  "5": "MAIO",
+  "6": "JUNHO",
+  "7": "JULHO",
+  "8": "AGOSTO",
+  "9": "SETEMBRO",
+  "10": "OUTUBRO",
+  "11": "NOVEMBRO",
+  "12": "DEZEMBRO",
 };
 
 function App() {
@@ -53,26 +62,32 @@ function App() {
   const [listaIndicadores, setListaIndicadores] = useState<boolean>(false);
   const [indicadores, setIndicadores] = useState<Indicador[]>([]);
   const [trimestre, setTrimestre] = useState<number>(1);
-  const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
+  const [anoSelecionado, setAnoSelecionado] = useState(
+    new Date().getFullYear()
+  );
   const [resultados, setResultados] = useState<{ [key: string]: string }>({});
   const [desvios, setDesvios] = useState<{ [key: string]: number }>({});
   const [nomeUsu, setNomeUsu] = useState("");
   const [codUsu, setCodUsu] = useState();
   const [inputValores, setInputValores] = useState<Record<string, string>>({});
-  const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(
+    null
+  );
 
-  useEffect(() => {
-    console.log(indicadores)
-  }, [indicadores])
+  console.log(indicadores);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>, indicador: any, mes: string) => {
-    const valor = e.target.value.replace(',', '.');
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    indicador: any,
+    mes: string
+  ) => {
+    const valor = unmaskCurrency(e.target.value);
 
     const chave = `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`;
 
-    setResultados(prevState => ({
+    setResultados((prevState) => ({
       ...prevState,
-      [chave]: valor
+      [chave]: valor,
     }));
 
     if (typingTimeout) {
@@ -80,14 +95,23 @@ function App() {
     }
 
     const timeout = setTimeout(() => {
-      handleBlurInputChange(indicador.ID_SUBGRUPO, indicador.ID_INDICAD, mes, valor);
+      handleBlurInputChange(
+        indicador.ID_SUBGRUPO,
+        indicador.ID_INDICAD,
+        mes,
+        valor.replace(",", ".")
+      );
     }, 1000);
 
     setTypingTimeout(timeout);
   };
 
-
-  const handleBlurInputChange = async (idSubGrupo: number, idIndicador: number, mes: string, valor: string) => {
+  const handleBlurInputChange = async (
+    idSubGrupo: number,
+    idIndicador: number,
+    mes: string,
+    valor: string
+  ) => {
     const chave = `${idSubGrupo}-${idIndicador}-${mes}`;
     const valorAnterior = resultados[chave];
 
@@ -99,14 +123,20 @@ function App() {
     const idMeses = await consultaChaveMes(idSubGrupo, idIndicador, mes);
 
     // Consultar o log atual no banco
-    const resultadoConsulta = await JX.consultar(`SELECT LOG FROM AD_INDICAD WHERE ID = ${idSetor} AND ID_SUBGRUPO = ${idSubGrupo} AND ID_INDICADOR = ${idIndicador} AND ID_MESES = ${idMeses}`);
+    const resultadoConsulta = await JX.consultar(
+      `SELECT LOG FROM AD_INDICAD WHERE ID = ${idSetor} AND ID_SUBGRUPO = ${idSubGrupo} AND ID_INDICADOR = ${idIndicador} AND ID_MESES = ${idMeses}`
+    );
     const logAtual = resultadoConsulta[0]?.LOG || "";
 
     // Formatar data
     const dataAlteracao = new Date();
-    const dataFormatada = dataAlteracao.toLocaleString('pt-BR', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    const dataFormatada = dataAlteracao.toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
     });
 
     // Criar o novo log
@@ -119,32 +149,37 @@ function App() {
       await JX.salvar(
         { RESULTADO: novoValor, LOG: logFormatado },
         "AD_INDICAD",
-        [{ ID: idSetor, ID_SUBGRUPO: idSubGrupo, ID_INDICAD: idIndicador, ID_MESES: idMeses }]
+        [
+          {
+            ID: idSetor,
+            ID_SUBGRUPO: idSubGrupo,
+            ID_INDICAD: idIndicador,
+            ID_MESES: idMeses,
+          },
+        ]
       );
-
-
     }
   };
-
-
 
   useEffect(() => {
     setInputValores(resultados);
   }, [resultados]);
 
-  useEffect
-
   useEffect(() => {
-    JX.consultar(`SELECT USU.CODUSU, USU.NOMEUSU FROM TSIUSU USU WHERE USU.CODUSU = SANKHYA.STP_GET_CODUSULOGADO()`)
-      .then((data: any) => {
-        setNomeUsu(data[0].NOMEUSU)
-        setCodUsu(data[0].CODUSU)
-      })
-  }, [])
-
+    JX.consultar(
+      `SELECT USU.CODUSU, USU.NOMEUSU FROM TSIUSU USU WHERE USU.CODUSU = SANKHYA.STP_GET_CODUSULOGADO()`
+    ).then((data: any) => {
+      setNomeUsu(data[0].NOMEUSU);
+      setCodUsu(data[0].CODUSU);
+    });
+  }, []);
 
   // busca o ID_MESES para fazer o update
-  const consultaChaveMes = async (idSubGrupo: number, idIndicador: number, mes: string) => {
+  const consultaChaveMes = async (
+    idSubGrupo: number,
+    idIndicador: number,
+    mes: string
+  ) => {
     try {
       const data = await JX.consultar(`
         SELECT ID_MESES 
@@ -157,20 +192,19 @@ function App() {
           SELECT 1 FROM AD_INDICADMESES
           WHERE ID_MESES = IND.ID_MESES AND ID = ${idSetor} AND MES = ${mes} AND ANO = ${anoSelecionado} 
         )
-      `)
+      `);
       if (data && data.length > 0) {
-        return (data[0].ID_MESES)
+        return data[0].ID_MESES;
       } else {
         return null;
       }
-
     } catch (error) {
       console.error("Erro na consulta de ID_MESES:", error);
       return null;
     }
   };
 
-  // calcula o devio 
+  // calcula o devio
   useEffect(() => {
     const novosDesvios: { [key: string]: number } = {};
 
@@ -181,13 +215,16 @@ function App() {
         // Recuperar o resultado atual (valor do input ou valor do indicador)
         const resultadoAtual =
           inputValores[chave] !== undefined && inputValores[chave] !== ""
-            ? parseFloat(inputValores[chave]) || 0
+            ? parseFloat(inputValores[chave].replace(",", ".")) || 0
             : Number(indicador.RESULTADO[mes]) || 0;
 
         const meta = Number(indicador.META?.[mes]) || 0;
         let metaOuLimite = "META";
 
-        if (indicador.METAOULIMITE && typeof indicador.METAOULIMITE === "object") {
+        if (
+          indicador.METAOULIMITE &&
+          typeof indicador.METAOULIMITE === "object"
+        ) {
           metaOuLimite = indicador.METAOULIMITE[mes] ?? "META";
         } else if (typeof indicador.METAOULIMITE === "string") {
           metaOuLimite = indicador.METAOULIMITE;
@@ -205,55 +242,56 @@ function App() {
 
         // Atualizar o desvio
         novosDesvios[chave] = desvio;
-        console.log(desvio);
-
       });
     });
 
     setDesvios(novosDesvios);
   }, [inputValores, resultados, indicadores]);
 
-
-
   // organiza indicadores onde traz o valor e o mês referente
-  const indicadoresOrganizados: IndicadoresOrganizados = indicadores.reduce((acc, indicador) => {
-    const chave = `${indicador.SUBGRUPO}-${indicador.INDICADOR}`;
-    const formatarPeso = (peso: number) => Number(peso.toFixed(2));
+  const indicadoresOrganizados: IndicadoresOrganizados = indicadores.reduce(
+    (acc, indicador) => {
+      const chave = `${indicador.SUBGRUPO}-${indicador.INDICADOR}`;
+      const formatarPeso = (peso: number) => Number(peso.toFixed(2));
 
-    if (!acc[chave]) {
-      acc[chave] = {
-        ID_INDICAD: indicador.ID_INDICAD,
-        ID_SUBGRUPO: indicador.ID_SUBGRUPO,
-        INDICADORAUT: indicador.INDICADORAUT,
-        SUBGRUPO: indicador.SUBGRUPO,
-        INDICADOR: indicador.INDICADOR,
-        METAOULIMITE: {},
-        META: {},
-        UNIDADE: indicador.UNIDADE,
-        PESO: Number(indicador.PESO),
-        RESULTADO: {},
-        DESVIO: {},
-      };
-    }
-    acc[chave].METAOULIMITE[indicador.MES] = String(indicador.METAOULIMITE ?? "META");
-    acc[chave].META[indicador.MES] = indicador.META;
-    acc[chave].RESULTADO[indicador.MES] = indicador.RESULTADO;
-    acc[chave].DESVIO[indicador.MES] = indicador.RESULTADO - indicador.META;
-    acc[chave].PESO = formatarPeso(indicador.PESO);
+      if (!acc[chave]) {
+        acc[chave] = {
+          ID_INDICAD: indicador.ID_INDICAD,
+          ID_SUBGRUPO: indicador.ID_SUBGRUPO,
+          INDICADORAUT: indicador.INDICADORAUT,
+          SUBGRUPO: indicador.SUBGRUPO,
+          INDICADOR: indicador.INDICADOR,
+          METAOULIMITE: {},
+          META: {},
+          UNIDADE: indicador.UNIDADE,
+          PESO: Number(indicador.PESO),
+          RESULTADO: {},
+          DESVIO: {},
+        };
+      }
+      acc[chave].METAOULIMITE[indicador.MES] = String(
+        indicador.METAOULIMITE ?? "META"
+      );
+      acc[chave].META[indicador.MES] = indicador.META;
+      acc[chave].RESULTADO[indicador.MES] = indicador.RESULTADO;
+      acc[chave].DESVIO[indicador.MES] = indicador.RESULTADO - indicador.META;
+      acc[chave].PESO = formatarPeso(indicador.PESO);
 
-    return acc;
-  }, {} as IndicadoresOrganizados);
-
-
+      return acc;
+    },
+    {} as IndicadoresOrganizados
+  );
 
   //busca setores
   useEffect(() => {
-    JX.consultar(`
+    JX.consultar(
+      `
       SELECT INDSETOR.ID, GRU.IDGRUPO, GRU.SETOR FROM AD_INDICADSETOR INDSETOR
       INNER JOIN AD_GRUPOSINDICAD GRU ON GRU.IDGRUPO = INDSETOR.IDGRUPO
       INNER JOIN AD_INDICADUSUARIOS ON AD_INDICADUSUARIOS.ID = INDSETOR.ID
       WHERE SANKHYA.STP_GET_CODUSULOGADO() = AD_INDICADUSUARIOS.CODUSU
-    `).then((data: any) => setSetores(data));
+    `
+    ).then((data: any) => setSetores(data));
   }, []);
 
   //busca indicadores do setor
@@ -272,7 +310,7 @@ function App() {
           CAST(IND.PESO AS DECIMAL(10,2)) AS PESO,
           IND.META,
           IND.METAOULIMITE,
-          REPLACE(FORMAT(IND.RESULTADO, 'N2', 'pt-BR'), ',', '.') AS RESULTADO,
+          REPLACE(TRIM(STR(IND.RESULTADO, 20, 2)), '.', ',') AS RESULTADO,
           IND.ID_MESES,
           (SELECT TOP 1 MES FROM AD_INDICADMESES INDMES WHERE INDMES.ID_MESES = IND.ID_MESES) AS MES
         FROM AD_INDICAD IND
@@ -288,14 +326,14 @@ function App() {
     }
   }, [idSetor, anoSelecionado]);
 
-
   //busca os meses de cada trimestre
   const mesesDoTrimestre = Object.keys(mesesNomes).filter(
     (mes) => Math.ceil(parseInt(mes) / 3) === trimestre
   );
   //filtrar meses do trimestre
   const indicadoresFiltrados = Object.values(indicadoresOrganizados).filter(
-    (indicador) => mesesDoTrimestre.some((mes) => indicador.RESULTADO[mes] !== undefined)
+    (indicador) =>
+      mesesDoTrimestre.some((mes) => indicador.RESULTADO[mes] !== undefined)
   );
 
   useEffect(() => {
@@ -308,10 +346,6 @@ function App() {
 
     setResultados(novosResultados);
   }, [indicadores]);
-
-
-
-
 
   return (
     <>
@@ -341,7 +375,6 @@ function App() {
             />
           </div>
 
-
           <div className="p-10">
             <div className="text-sm font-medium text-center border-b text-gray-400 border-gray-700 ">
               <ul className="flex flex-wrap -mb-px">
@@ -349,8 +382,11 @@ function App() {
                   <li key={num} className="me-2">
                     <button
                       onClick={() => setTrimestre(num)}
-                      className={`inline-block p-4 border-b-2 rounded-t-lg ${trimestre === num ? "text-blue-500 border-blue-500" : "border-transparent hover:border-gray-300 hover:text-gray-300"
-                        }`}
+                      className={`inline-block p-4 border-b-2 rounded-t-lg ${
+                        trimestre === num
+                          ? "text-blue-500 border-blue-500"
+                          : "border-transparent hover:border-gray-300 hover:text-gray-300"
+                      }`}
                     >
                       Trimestre {num}
                     </button>
@@ -368,191 +404,320 @@ function App() {
                     <th className="px-4 py-2"></th>
                     <th className="px-4 py-2"></th>
                     {mesesDoTrimestre.map((mes) => (
-                      <th key={mes} className="px-4 py-2 border border-gray-500 text-center">{mesesNomes[mes]}</th>
+                      <th
+                        key={mes}
+                        className="px-4 py-2 border border-gray-500 text-center"
+                      >
+                        {mesesNomes[mes]}
+                      </th>
                     ))}
-                    <th className="px-4 py-2 border border-gray-500 text-center">MÉDIA DO TRIMESTRE</th>
-                    <th className="px-4 py-2 border border-gray-500 text-center">PESO</th>
+                    <th className="px-4 py-2 border border-gray-500 text-center">
+                      MÉDIA DO TRIMESTRE
+                    </th>
+                    <th className="px-4 py-2 border border-gray-500 text-center">
+                      PESO
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {indicadoresFiltrados.flatMap((indicador, index, array) => {
-                    const isFirstOfSubgrupo = index === 0 || array[index - 1].SUBGRUPO !== indicador.SUBGRUPO;
-                    const isLastOfSubgrupo = index === array.length - 1 || array[index + 1].SUBGRUPO !== indicador.SUBGRUPO;
-                    const subgrupoCount = array.filter(i => i.SUBGRUPO === indicador.SUBGRUPO).length;
+                    const isFirstOfSubgrupo =
+                      index === 0 ||
+                      array[index - 1].SUBGRUPO !== indicador.SUBGRUPO;
+                    const isLastOfSubgrupo =
+                      index === array.length - 1 ||
+                      array[index + 1].SUBGRUPO !== indicador.SUBGRUPO;
+                    const subgrupoCount = array.filter(
+                      (i) => i.SUBGRUPO === indicador.SUBGRUPO
+                    ).length;
 
                     const valoresMeta = mesesDoTrimestre
                       .map((mes) => indicador.META[mes] ?? null)
-                      .filter((v) => v !== null && (typeof v !== "string" || v !== "") && typeof v === "number" && !isNaN(v));
+                      .filter(
+                        (v) =>
+                          v !== null &&
+                          (typeof v !== "string" || v !== "") &&
+                          typeof v === "number" &&
+                          !isNaN(v)
+                      );
 
                     const valoresResultado = mesesDoTrimestre
-                      .map((mes) => resultados[`${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`] ?? indicador.RESULTADO[mes] ?? null)
-                      .filter((v) => v !== null && v !== "" && !isNaN(parseFloat(v)));
+                      .map(
+                        (mes) =>
+                          resultados[
+                            `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
+                          ] ??
+                          indicador.RESULTADO[mes] ??
+                          null
+                      )
+                      .filter(
+                        (v) => v !== null && v !== "" && !isNaN(parseFloat(v))
+                      );
 
                     const mediaMeta = valoresMeta.length
-                      ? valoresMeta.reduce((acc, val) => acc + (typeof val === "number" ? val : parseFloat(val)), 0) / valoresMeta.length
+                      ? valoresMeta.reduce(
+                          (acc, val) =>
+                            acc +
+                            (typeof val === "number" ? val : parseFloat(val)),
+                          0
+                        ) / valoresMeta.length
                       : 0;
 
                     const mediaResultado = valoresResultado.length
-                      ? valoresResultado.reduce((acc, val) => acc + (typeof val === "string" ? parseFloat(val.replace(",", ".")) : val), 0) / valoresResultado.length
+                      ? valoresResultado.reduce(
+                          (acc, val) =>
+                            acc +
+                            (typeof val === "string"
+                              ? parseFloat(val.replace(",", "."))
+                              : val),
+                          0
+                        ) / valoresResultado.length
                       : 0;
 
-
-                    const metaOuLimite = typeof indicador.METAOULIMITE === "object"
-                      ? indicador.METAOULIMITE[mesesDoTrimestre[0]] ?? "META"
-                      : indicador.METAOULIMITE;
+                    const metaOuLimite =
+                      typeof indicador.METAOULIMITE === "object"
+                        ? indicador.METAOULIMITE[mesesDoTrimestre[0]] ?? "META"
+                        : indicador.METAOULIMITE;
 
                     const resultado = Number(mediaResultado) || 0;
                     const meta = Number(mediaMeta) || 0;
 
-                    const pesoFinal = metaOuLimite === "LIMITE"
-                      ? resultado <= meta
-                        ? indicador.PESO
-                        : 0
-                      : resultado < meta
+                    const pesoFinal =
+                      metaOuLimite === "LIMITE"
+                        ? resultado <= meta
+                          ? indicador.PESO
+                          : 0
+                        : resultado < meta
                         ? 0
                         : indicador.PESO;
 
                     return [
-                      ...['Meta', 'Resultado', 'Desvio'].map((tipo, tipoIndex) => {
+                      ...["Meta", "Resultado", "Desvio"].map(
+                        (tipo, tipoIndex) => {
+                          const valoresValidos = mesesDoTrimestre
+                            .map((mes) => {
+                              if (tipo === "Meta")
+                                return indicador.META[mes] ?? null;
+                              if (tipo === "Resultado")
+                                return (
+                                  resultados[
+                                    `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
+                                  ] ??
+                                  indicador.RESULTADO[mes] ??
+                                  null
+                                );
+                              if (tipo === "Desvio")
+                                return (
+                                  desvios[
+                                    `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
+                                  ] ?? null
+                                );
 
-                        const valoresValidos = mesesDoTrimestre
-                          .map((mes) => {
-                            if (tipo === "Meta") return indicador.META[mes] ?? null;
-                            if (tipo === "Resultado") return resultados[`${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`] ?? indicador.RESULTADO[mes] ?? null;
-                            if (tipo === "Desvio") return desvios[`${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`] ?? null;
+                              return null;
+                            })
+                            .filter((v) => v !== null && v !== "");
 
-                            return null;
-                          })
-                          .filter((v) => v !== null && v !== "");
+                          const mediaTrimestre = valoresValidos.length
+                            ? new Intl.NumberFormat("pt-BR", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              }).format(
+                                valoresValidos.reduce((acc: any, val: any) => {
+                                  const valorNumerico =
+                                    typeof val === "string"
+                                      ? parseFloat(val.replace(",", "."))
+                                      : val;
+                                  return acc + valorNumerico;
+                                }, 0) /
+                                  valoresValidos.filter(
+                                    (val) => val !== null || val !== undefined
+                                  ).length
+                              )
+                            : "";
 
-                          console.log(valoresValidos)
-                        const mediaTrimestre = valoresValidos.length
-                          ? new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
-                            valoresValidos.reduce((acc: any, val: any) => {
-                              const valorNumerico = typeof val === "string" ? parseFloat(val.replace(",", ".")) : val;
-                              return acc + valorNumerico;
-                            }, 0) / valoresValidos.filter(val => val !== null || val !== undefined).length
-                          )
-                          : "";
-
-                        return (
-                          <tr key={`${index}-${tipoIndex}`}>
-                            {tipoIndex === 0 && isFirstOfSubgrupo && (
-                              <td className="uppercase px-4 py-2 border bg-gray-700 border-gray-500 text-center font-semibold" rowSpan={subgrupoCount * 3}>
-                                {indicador.SUBGRUPO}
+                          return (
+                            <tr key={`${index}-${tipoIndex}`}>
+                              {tipoIndex === 0 && isFirstOfSubgrupo && (
+                                <td
+                                  className="uppercase px-4 py-2 border bg-gray-700 border-gray-500 text-center font-semibold"
+                                  rowSpan={subgrupoCount * 3}
+                                >
+                                  {indicador.SUBGRUPO}
+                                </td>
+                              )}
+                              {tipoIndex === 0 && (
+                                <td
+                                  className="uppercase px-4 py-2 border border-gray-500 text-center font-medium"
+                                  rowSpan={3}
+                                >
+                                  {indicador.INDICADOR}
+                                </td>
+                              )}
+                              {tipoIndex === 0 && (
+                                <td
+                                  className="uppercase px-4 py-2 border border-gray-500 text-center font-medium"
+                                  rowSpan={3}
+                                >
+                                  {indicador.UNIDADE}
+                                </td>
+                              )}
+                              <td className="uppercase px-4 py-2 border border-gray-500 text-center font-semibold">
+                                {tipo}
                               </td>
-                            )}
-                            {tipoIndex === 0 && (
-                              <td className="uppercase px-4 py-2 border border-gray-500 text-center font-medium" rowSpan={3}>
-                                {indicador.INDICADOR}
-                              </td>
-                            )}
-                            {tipoIndex === 0 && (
-                              <td className="uppercase px-4 py-2 border border-gray-500 text-center font-medium" rowSpan={3}>
-                                {indicador.UNIDADE}
-                              </td>
-                            )}
-                            <td className="uppercase px-4 py-2 border border-gray-500 text-center font-semibold">{tipo}</td>
 
-                            {mesesDoTrimestre.map((mes) => (
-                              <td
-                                key={`${mes}-${tipo}-${index}`}
-                                className={`px-4 py-2 border border-gray-500 text-center ${tipo === "Desvio" && desvios[`${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`] != null
-                                  ? desvios[`${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`] < 0
-                                    ? "bg-rose-500 font-bold"
-                                    : "bg-emerald-500 font-bold"
-                                  : ""
+                              {mesesDoTrimestre.map((mes) => (
+                                <td
+                                  key={`${mes}-${tipo}-${index}`}
+                                  className={`px-4 py-2 border border-gray-500 text-center ${
+                                    tipo === "Desvio" &&
+                                    desvios[
+                                      `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
+                                    ] != null
+                                      ? desvios[
+                                          `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
+                                        ] < 0
+                                        ? "bg-rose-500 font-bold"
+                                        : "bg-emerald-500 font-bold"
+                                      : ""
                                   }`}
-                              >
-                                {tipo === "Meta" && indicador.META[mes] != null
-                                  ? new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(indicador.META[mes])
-                                  : tipo === "Resultado"
-                                    ? (
-                                      <input
-                                        type="text"
-                                        className="w-full text-center border-none outline-none bg-transparent"
-                                        value={
-                                          resultados[`${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`] ?? ''
-                                        }
-                                        disabled={indicador.INDICADORAUT === 'S'}
-                                        onChange={(e) => handleChange(e, indicador, mes)}
-                                      />
+                                >
+                                  {tipo === "Meta" &&
+                                  indicador.META[mes] != null ? (
+                                    new Intl.NumberFormat("pt-BR", {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    }).format(indicador.META[mes])
+                                  ) : tipo === "Resultado" ? (
+                                    <input
+                                      type="text"
+                                      className="w-full text-center border-none outline-none bg-transparent"
+                                      value={
+                                        resultados[
+                                          `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
+                                        ]
+                                          ? maskCurrency(
+                                              resultados[
+                                                `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
+                                              ]
+                                            )
+                                          : ""
+                                      }
+                                      disabled={indicador.INDICADORAUT === "S"}
+                                      onChange={(e) =>
+                                        handleChange(e, indicador, mes)
+                                      }
+                                    />
+                                  ) : tipo === "Desvio" &&
+                                    desvios[
+                                      `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
+                                    ] != null ? (
+                                    new Intl.NumberFormat("pt-BR", {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    }).format(
+                                      desvios[
+                                        `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
+                                      ]
+                                    ) ?? ""
+                                  ) : (
+                                    ""
+                                  )}
+                                </td>
+                              ))}
 
-                                    )
-                                    : tipo === "Desvio" && desvios[`${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`] != null
-                                      ? new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(desvios[`${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`]) ?? ""
-                                      : ""}
+                              {/* Média do Trimestre */}
+                              <td className="uppercase px-4 py-2 border border-gray-500 text-center font-bold">
+                                {mediaTrimestre}
                               </td>
-                            ))}
 
-                            {/* Média do Trimestre */}
-                            <td className="uppercase px-4 py-2 border border-gray-500 text-center font-bold">
-                              {mediaTrimestre}
-                            </td>
-
-
-                            {tipoIndex === 0 && (
-                              <td className="uppercase px-4 py-2 border border-gray-500 text-center font-medium" rowSpan={3}>
-                                {pesoFinal}
-                              </td>
-                            )}
-                          </tr>
-                        );
-                      }),
+                              {tipoIndex === 0 && (
+                                <td
+                                  className="uppercase px-4 py-2 border border-gray-500 text-center font-medium"
+                                  rowSpan={3}
+                                >
+                                  {pesoFinal}
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        }
+                      ),
                       isLastOfSubgrupo && (
-                        <tr key={`aderencia-${indicador.SUBGRUPO}-${index}`} className="bg-gray-900">
-                          <td colSpan={mesesDoTrimestre.length + 5} className="uppercase px-4 py-1 border bg-gray-300 border-gray-500 text-gray-900 font-semibold">
+                        <tr
+                          key={`aderencia-${indicador.SUBGRUPO}-${index}`}
+                          className="bg-gray-900"
+                        >
+                          <td
+                            colSpan={mesesDoTrimestre.length + 5}
+                            className="uppercase px-4 py-1 border bg-gray-300 border-gray-500 text-gray-900 font-semibold"
+                          >
                             ADERÊNCIA DO SETOR
                           </td>
                           <td className="uppercase text-center border bg-gray-300 border-gray-500 text-gray-900 font-semibold">
                             {array
-                              .filter(i => i.SUBGRUPO === indicador.SUBGRUPO)
+                              .filter((i) => i.SUBGRUPO === indicador.SUBGRUPO)
                               .reduce((acc, i) => {
                                 const valoresMeta = mesesDoTrimestre
                                   .map((mes) => Number(i.META[mes]))
                                   .filter((v) => !isNaN(v));
 
                                 const mediaMeta = valoresMeta.length
-                                  ? valoresMeta.reduce((acc, val) => acc + val, 0) / valoresMeta.length
+                                  ? valoresMeta.reduce(
+                                      (acc, val) => acc + val,
+                                      0
+                                    ) / valoresMeta.length
                                   : 0;
 
                                 const valoresResultado = mesesDoTrimestre
-                                  .map((mes) => Number(resultados[`${i.ID_SUBGRUPO}-${i.ID_INDICAD}-${mes}`] ?? i.RESULTADO[mes]))
+                                  .map((mes) =>
+                                    Number(
+                                      resultados[
+                                        `${i.ID_SUBGRUPO}-${i.ID_INDICAD}-${mes}`
+                                      ] ?? i.RESULTADO[mes]
+                                    )
+                                  )
                                   .filter((v) => !isNaN(v));
 
                                 const mediaResultado = valoresResultado.length
-                                  ? valoresResultado.reduce((acc, val) => acc + val, 0) / valoresResultado.length
+                                  ? valoresResultado.reduce(
+                                      (acc, val) => acc + val,
+                                      0
+                                    ) / valoresResultado.length
                                   : 0;
 
-                                const metaOuLimite = typeof i.METAOULIMITE === "object"
-                                  ? i.METAOULIMITE[mesesDoTrimestre[0]] ?? "META"
-                                  : i.METAOULIMITE;
+                                const metaOuLimite =
+                                  typeof i.METAOULIMITE === "object"
+                                    ? i.METAOULIMITE[mesesDoTrimestre[0]] ??
+                                      "META"
+                                    : i.METAOULIMITE;
 
                                 const resultado = Number(mediaResultado) || 0;
                                 const meta = Number(mediaMeta) || 0;
 
-                                const pesoFinal = metaOuLimite === "LIMITE"
-                                  ? resultado <= meta
-                                    ? i.PESO
-                                    : 0
-                                  : resultado < meta
+                                const pesoFinal =
+                                  metaOuLimite === "LIMITE"
+                                    ? resultado <= meta
+                                      ? i.PESO
+                                      : 0
+                                    : resultado < meta
                                     ? 0
                                     : i.PESO;
 
                                 return acc + pesoFinal * 100;
                               }, 0)
-                              .toFixed(2)}%
+                              .toFixed(2)}
+                            %
                           </td>
-
                         </tr>
-                      )
+                      ),
                     ];
                   })}
                 </tbody>
               </table>
-
             ) : (
-              <p className="text-gray-400 text-center mt-5">Nenhum indicador disponível para este trimestre.</p>
+              <p className="text-gray-400 text-center mt-5">
+                Nenhum indicador disponível para este trimestre.
+              </p>
             )}
           </div>
         </>
@@ -573,7 +738,9 @@ function App() {
                 }}
                 className="bg-gradient-to-br cursor-pointer text-white p-6 rounded-xl shadow-lg border border-gray-600 transition-transform transform hover:scale-105 hover:shadow-2xl"
               >
-                <h2 className="text-xl font-semibold text-center">{setor.SETOR}</h2>
+                <h2 className="text-xl font-semibold text-center">
+                  {setor.SETOR}
+                </h2>
               </div>
             ))}
           </div>
