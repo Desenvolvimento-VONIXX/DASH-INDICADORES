@@ -21,6 +21,7 @@ interface Indicador {
   RESULTADO: number;
   DESVIO?: number;
   METAOULIMITE?: string;
+  SOMA?: string;
   PESO: number;
   INDICADORAUT: string;
   HABILITADO: string;
@@ -33,6 +34,7 @@ interface IndicadoresOrganizados {
     SUBGRUPO: string;
     INDICADOR: string;
     METAOULIMITE: { [key: string]: string };
+    SOMA: { [key: string]: string };
     META: { [key: string]: number };
     UNIDADE: string;
     RESULTADO: { [key: string]: number };
@@ -277,6 +279,7 @@ function App() {
           SUBGRUPO: indicador.SUBGRUPO,
           INDICADOR: indicador.INDICADOR,
           METAOULIMITE: {},
+          SOMA: {},
           META: {},
           UNIDADE: indicador.UNIDADE,
           PESO: Number(indicador.PESO),
@@ -284,6 +287,7 @@ function App() {
           DESVIO: {},
         };
       }
+      acc[chave].SOMA[indicador.MES] = String(indicador.SOMA ?? "SOMA");
       acc[chave].METAOULIMITE[indicador.MES] = String(
         indicador.METAOULIMITE ?? "META"
       );
@@ -333,7 +337,8 @@ function App() {
           INDP.UNIDADE, 
           CAST(IND.PESO AS DECIMAL(10,2)) AS PESO,
           IND.META,
-          IND.METAOULIMITE,
+          IND.METAOULIMITE, 
+          IND.SOMA, 
           REPLACE(TRIM(STR(IND.RESULTADO, 20, 2)), '.', ',') AS RESULTADO,
           IND.ID_MESES,
           (SELECT TOP 1 MES FROM AD_INDICADMESES INDMES WHERE INDMES.ID_MESES = IND.ID_MESES) AS MES
@@ -406,11 +411,10 @@ function App() {
                   <li key={num} className="me-2">
                     <button
                       onClick={() => setTrimestre(num)}
-                      className={`inline-block p-4 bg-transparent border-b-2 rounded-t-lg ${
-                        trimestre === num
-                          ? "text-blue-500 border-blue-500 font-bold"
-                          : "border-transparent hover:border-slate-600 hover:text-slate-600"
-                      }`}
+                      className={`inline-block p-4 bg-transparent border-b-2 rounded-t-lg ${trimestre === num
+                        ? "text-blue-500 border-blue-500 font-bold"
+                        : "border-transparent hover:border-slate-600 hover:text-slate-600"
+                        }`}
                     >
                       Trimestre {num}
                     </button>
@@ -437,6 +441,9 @@ function App() {
                     ))}
                     <th className="px-4 py-2 border border-slate-500 text-center">
                       MÉDIA DO TRIMESTRE
+                    </th>
+                    <th className="px-4 py-2 border border-slate-500 text-center">
+                      SOMA DO TRIMESTRE
                     </th>
                     <th className="px-4 py-2 border border-slate-500 text-center">
                       PESO
@@ -472,7 +479,7 @@ function App() {
                       .map(
                         (mes) =>
                           resultados[
-                            `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
+                          `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
                           ] ??
                           indicador.RESULTADO[mes] ??
                           null
@@ -483,22 +490,22 @@ function App() {
 
                     const mediaMeta = valoresMeta.length
                       ? valoresMeta.reduce(
-                          (acc, val) =>
-                            acc +
-                            (typeof val === "number" ? val : parseFloat(val)),
-                          0
-                        ) / valoresMeta.length
+                        (acc, val) =>
+                          acc +
+                          (typeof val === "number" ? val : parseFloat(val)),
+                        0
+                      ) / valoresMeta.length
                       : 0;
 
                     const mediaResultado = valoresResultado.length
                       ? valoresResultado.reduce(
-                          (acc, val) =>
-                            acc +
-                            (typeof val === "string"
-                              ? parseFloat(val.replace(",", "."))
-                              : val),
-                          0
-                        ) / valoresResultado.length
+                        (acc, val) =>
+                          acc +
+                          (typeof val === "string"
+                            ? parseFloat(val.replace(",", "."))
+                            : val),
+                        0
+                      ) / valoresResultado.length
                       : 0;
 
                     const metaOuLimite =
@@ -515,8 +522,8 @@ function App() {
                           ? indicador.PESO
                           : 0
                         : resultado < meta
-                        ? 0
-                        : indicador.PESO;
+                          ? 0
+                          : indicador.PESO;
 
                     return [
                       ...["Meta", "Resultado", "Desvio"].map(
@@ -528,7 +535,7 @@ function App() {
                               if (tipo === "Resultado")
                                 return (
                                   resultados[
-                                    `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
+                                  `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
                                   ] ??
                                   indicador.RESULTADO[mes] ??
                                   null
@@ -536,7 +543,7 @@ function App() {
                               if (tipo === "Desvio")
                                 return (
                                   desvios[
-                                    `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
+                                  `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
                                   ] ?? null
                                 );
 
@@ -546,20 +553,35 @@ function App() {
 
                           const mediaTrimestre = valoresValidos.length
                             ? new Intl.NumberFormat("pt-BR", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              }).format(
-                                valoresValidos.reduce((acc: any, val: any) => {
-                                  const valorNumerico =
-                                    typeof val === "string"
-                                      ? parseFloat(val.replace(",", "."))
-                                      : val;
-                                  return acc + valorNumerico;
-                                }, 0) /
-                                  valoresValidos.filter(
-                                    (val) => val !== null || val !== undefined
-                                  ).length
-                              )
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            }).format(
+                              valoresValidos.reduce((acc: any, val: any) => {
+                                const valorNumerico =
+                                  typeof val === "string"
+                                    ? parseFloat(val.replace(",", "."))
+                                    : val;
+                                return acc + valorNumerico;
+                              }, 0) /
+                              valoresValidos.filter(
+                                (val) => val !== null || val !== undefined
+                              ).length
+                            )
+                            : "";
+
+                          const somaTrimestre = valoresValidos.length
+                            ? new Intl.NumberFormat("pt-BR", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            }).format(
+                              valoresValidos.reduce((acc: any, val: any) => {
+                                const valorNumerico =
+                                  typeof val === "string"
+                                    ? parseFloat(val.replace(",", "."))
+                                    : val;
+                                return acc + valorNumerico;
+                              }, 0)
+                            )
                             : "";
 
                           return (
@@ -595,21 +617,20 @@ function App() {
                               {mesesDoTrimestre.map((mes) => (
                                 <td
                                   key={`${mes}-${tipo}-${index}`}
-                                  className={`px-4 py-2 border border-slate-500 text-center ${
-                                    tipo === "Desvio" &&
+                                  className={`px-4 py-2 border border-slate-500 text-center ${tipo === "Desvio" &&
                                     desvios[
-                                      `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
+                                    `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
                                     ] != null
-                                      ? desvios[
-                                          `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
-                                        ] < 0
-                                        ? "bg-rose-500 font-bold"
-                                        : "bg-emerald-500 font-bold"
-                                      : ""
-                                  }`}
+                                    ? desvios[
+                                      `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
+                                    ] < 0
+                                      ? "bg-rose-500 font-bold"
+                                      : "bg-emerald-500 font-bold"
+                                    : ""
+                                    }`}
                                 >
                                   {tipo === "Meta" &&
-                                  indicador.META[mes] != null ? (
+                                    indicador.META[mes] != null ? (
                                     new Intl.NumberFormat("pt-BR", {
                                       minimumFractionDigits: 2,
                                       maximumFractionDigits: 2,
@@ -623,10 +644,10 @@ function App() {
                                           `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
                                         ]
                                           ? maskCurrency(
-                                              resultados[
-                                                `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
-                                              ]
-                                            )
+                                            resultados[
+                                            `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
+                                            ]
+                                          )
                                           : ""
                                       }
                                       disabled={
@@ -643,14 +664,14 @@ function App() {
                                     />
                                   ) : tipo === "Desvio" &&
                                     desvios[
-                                      `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
+                                    `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
                                     ] != null ? (
                                     new Intl.NumberFormat("pt-BR", {
                                       minimumFractionDigits: 2,
                                       maximumFractionDigits: 2,
                                     }).format(
                                       desvios[
-                                        `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
+                                      `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
                                       ]
                                     ) ?? ""
                                   ) : (
@@ -663,6 +684,12 @@ function App() {
                               <td className="uppercase px-4 py-2 border border-slate-500 text-center font-bold">
                                 {mediaTrimestre}
                               </td>
+
+                              {/* Soma do Trimestre */}
+                              <td className="uppercase px-4 py-2 border border-slate-500 text-center font-bold">
+                                {Object.values(indicador.SOMA)[0] == 'S' ? somaTrimestre : '-'}
+                              </td>
+
 
                               {tipoIndex === 0 && (
                                 <>
@@ -690,7 +717,7 @@ function App() {
                           className="bg-slate-900"
                         >
                           <td
-                            colSpan={mesesDoTrimestre.length + 5}
+                            colSpan={mesesDoTrimestre.length + 6}
                             className="uppercase px-4 py-1 border bg-yellow-200 dark:bg-slate-300 border-slate-500 text-slate-900 font-semibold"
                           >
                             ADERÊNCIA DO SETOR
@@ -715,9 +742,9 @@ function App() {
 
                                 const mediaMeta = valoresMeta.length
                                   ? valoresMeta.reduce(
-                                      (acc, val) => acc + val,
-                                      0
-                                    ) / valoresMeta.length
+                                    (acc, val) => acc + val,
+                                    0
+                                  ) / valoresMeta.length
                                   : 0;
 
                                 console.log("Média da Meta:", mediaMeta);
@@ -726,7 +753,7 @@ function App() {
                                   .map((mes) => {
                                     let valorStr =
                                       resultados[
-                                        `${i.ID_SUBGRUPO}-${i.ID_INDICAD}-${mes}`
+                                      `${i.ID_SUBGRUPO}-${i.ID_INDICAD}-${mes}`
                                       ] ?? i.RESULTADO[mes];
 
                                     if (valorStr == null || valorStr === "")
@@ -750,9 +777,9 @@ function App() {
 
                                 const mediaResultado = valoresResultado.length
                                   ? valoresResultado.reduce(
-                                      (acc, val) => acc + val,
-                                      0
-                                    ) / valoresResultado.length
+                                    (acc, val) => acc + val,
+                                    0
+                                  ) / valoresResultado.length
                                   : 0;
 
                                 console.log(
@@ -763,7 +790,7 @@ function App() {
                                 const metaOuLimite =
                                   typeof i.METAOULIMITE === "object"
                                     ? i.METAOULIMITE[mesesDoTrimestre[0]] ??
-                                      "META"
+                                    "META"
                                     : i.METAOULIMITE;
 
                                 console.log("Meta ou Limite:", metaOuLimite);
@@ -777,8 +804,8 @@ function App() {
                                       ? i.PESO
                                       : 0
                                     : resultado < meta
-                                    ? 0
-                                    : i.PESO;
+                                      ? 0
+                                      : i.PESO;
 
                                 console.log("Peso Final:", pesoFinal);
 
