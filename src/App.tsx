@@ -23,6 +23,7 @@ interface Indicador {
   METAOULIMITE?: string;
   PESO: number;
   INDICADORAUT: string;
+  HABILITADO: string;
 }
 
 interface IndicadoresOrganizados {
@@ -38,6 +39,7 @@ interface IndicadoresOrganizados {
     PESO: number;
     DESVIO: { [key: string]: number };
     INDICADORAUT: string;
+    HABILITADO: string;
   };
 }
 const mesesNomes: { [key: string]: string } = {
@@ -248,6 +250,18 @@ function App() {
     setDesvios(novosDesvios);
   }, [inputValores, resultados, indicadores]);
 
+  function pesquisarHabilitado(id: Number, idSubgrupo: Number, mes: string) {
+    const resultado = indicadores.find(
+      (item) =>
+        item.ID_INDICAD === id &&
+        item.ID_SUBGRUPO === idSubgrupo &&
+        item.MES === mes
+    );
+
+    // Verifica se o resultado existe e retorna o valor de HABILITADO
+    return resultado ? resultado.HABILITADO : null; // Retorna 'null' caso não encontre
+  }
+
   // organiza indicadores onde traz o valor e o mês referente
   const indicadoresOrganizados: IndicadoresOrganizados = indicadores.reduce(
     (acc, indicador) => {
@@ -259,6 +273,7 @@ function App() {
           ID_INDICAD: indicador.ID_INDICAD,
           ID_SUBGRUPO: indicador.ID_SUBGRUPO,
           INDICADORAUT: indicador.INDICADORAUT,
+          HABILITADO: indicador.HABILITADO,
           SUBGRUPO: indicador.SUBGRUPO,
           INDICADOR: indicador.INDICADOR,
           METAOULIMITE: {},
@@ -301,6 +316,15 @@ function App() {
         SELECT IND.ID, 
         IND.ID_SUBGRUPO,
         IND.INDICADORAUT,
+        CASE 
+        WHEN IND.HABILITADO IS NOT NULL THEN IND.HABILITADO 
+        WHEN sankhya.Get_proximo_dia_util( 
+            DATEADD(DAY, 5, EOMONTH(DATEFROMPARTS(YEAR(GETDATE()), IND.ID_MESES, 1))), 
+            0, 0, 0 
+        ) >= CAST(GETDATE() AS DATE) 
+        THEN 'S' 
+        ELSE 'N' 
+        END AS HABILITADO,
           (SELECT TOP 1 GRU.Setor FROM AD_GRUPOSINDICAD GRU
            INNER JOIN AD_INDICADSUBGRUPO SUB ON SUB.IDGRUPO = GRU.IDGRUPO
            WHERE SUB.ID_SUBGRUPO = IND.ID_SUBGRUPO AND SUB.ID = ${idSetor}) AS SUBGRUPO,
@@ -359,33 +383,33 @@ function App() {
               }}
               className="absolute left-5 p-2 cursor-pointer"
             >
-              <ArrowLeft className="w-8 h-8 text-white" />
+              <ArrowLeft className="w-8 h-8 dark:text-white" />
             </span>
 
-            <h2 className="text-3xl text-white font-bold flex-1 text-center">
+            <h2 className="text-3xl dark:text-white font-bold flex-1 text-center">
               {nomeSetor}
             </h2>
 
             <Input
               type="text"
               placeholder="Ano"
-              className="text-white bg-transparent border border-white px-3 py-1 rounded-md w-20 ml-auto"
+              className="dark:text-white bg-transparent border dark:border-white px-3 py-1 rounded-md w-20 ml-auto"
               value={anoSelecionado}
               onChange={(e) => setAnoSelecionado(Number(e.target.value))}
             />
           </div>
 
           <div className="p-10">
-            <div className="text-sm font-medium text-center border-b text-gray-400 border-gray-700 ">
+            <div className="text-sm font-medium text-center border-b dark:text-slate-400 border-slate-700 ">
               <ul className="flex flex-wrap -mb-px">
                 {[1, 2, 3, 4].map((num) => (
                   <li key={num} className="me-2">
                     <button
                       onClick={() => setTrimestre(num)}
-                      className={`inline-block p-4 border-b-2 rounded-t-lg ${
+                      className={`inline-block p-4 bg-transparent border-b-2 rounded-t-lg ${
                         trimestre === num
-                          ? "text-blue-500 border-blue-500"
-                          : "border-transparent hover:border-gray-300 hover:text-gray-300"
+                          ? "text-blue-500 border-blue-500 font-bold"
+                          : "border-transparent hover:border-slate-600 hover:text-slate-600"
                       }`}
                     >
                       Trimestre {num}
@@ -396,9 +420,9 @@ function App() {
             </div>
 
             {indicadoresFiltrados.length > 0 ? (
-              <table className="min-w-full text-sm text-left text-white mt-3">
+              <table className="min-w-full text-sm text-left dark:text-white mt-3">
                 <thead>
-                  <tr className="text-gray-200 uppercase">
+                  <tr className="dark:text-slate-200 uppercase">
                     <th className="px-4 py-2"></th>
                     <th className="px-4 py-2"></th>
                     <th className="px-4 py-2"></th>
@@ -406,16 +430,19 @@ function App() {
                     {mesesDoTrimestre.map((mes) => (
                       <th
                         key={mes}
-                        className="px-4 py-2 border border-gray-500 text-center"
+                        className="px-4 py-2 border border-slate-500 text-center"
                       >
                         {mesesNomes[mes]}
                       </th>
                     ))}
-                    <th className="px-4 py-2 border border-gray-500 text-center">
+                    <th className="px-4 py-2 border border-slate-500 text-center">
                       MÉDIA DO TRIMESTRE
                     </th>
-                    <th className="px-4 py-2 border border-gray-500 text-center">
+                    <th className="px-4 py-2 border border-slate-500 text-center">
                       PESO
+                    </th>
+                    <th className="px-4 py-2 border border-slate-500 text-center">
+                      PESO FIXO
                     </th>
                   </tr>
                 </thead>
@@ -539,7 +566,7 @@ function App() {
                             <tr key={`${index}-${tipoIndex}`}>
                               {tipoIndex === 0 && isFirstOfSubgrupo && (
                                 <td
-                                  className="uppercase px-4 py-2 border bg-gray-700 border-gray-500 text-center font-semibold"
+                                  className="uppercase px-4 py-2 border text-white bg-slate-500 border-slate-500 text-center font-semibold"
                                   rowSpan={subgrupoCount * 3}
                                 >
                                   {indicador.SUBGRUPO}
@@ -547,7 +574,7 @@ function App() {
                               )}
                               {tipoIndex === 0 && (
                                 <td
-                                  className="uppercase px-4 py-2 border border-gray-500 text-center font-medium"
+                                  className="uppercase px-4 py-2 border bg-slate-300 border-slate-500 text-center font-medium"
                                   rowSpan={3}
                                 >
                                   {indicador.INDICADOR}
@@ -555,20 +582,20 @@ function App() {
                               )}
                               {tipoIndex === 0 && (
                                 <td
-                                  className="uppercase px-4 py-2 border border-gray-500 text-center font-medium"
+                                  className="uppercase px-4 py-2 border bg-slate-200 border-slate-500 text-center font-medium"
                                   rowSpan={3}
                                 >
                                   {indicador.UNIDADE}
                                 </td>
                               )}
-                              <td className="uppercase px-4 py-2 border border-gray-500 text-center font-semibold">
+                              <td className="uppercase px-4 py-2 border bg-slate-100 border-slate-500 text-center font-semibold">
                                 {tipo}
                               </td>
 
                               {mesesDoTrimestre.map((mes) => (
                                 <td
                                   key={`${mes}-${tipo}-${index}`}
-                                  className={`px-4 py-2 border border-gray-500 text-center ${
+                                  className={`px-4 py-2 border border-slate-500 text-center ${
                                     tipo === "Desvio" &&
                                     desvios[
                                       `${indicador.ID_SUBGRUPO}-${indicador.ID_INDICAD}-${mes}`
@@ -602,7 +629,14 @@ function App() {
                                             )
                                           : ""
                                       }
-                                      disabled={indicador.INDICADORAUT === "S"}
+                                      disabled={
+                                        indicador.INDICADORAUT === "S" ||
+                                        pesquisarHabilitado(
+                                          indicador.ID_INDICAD,
+                                          indicador.ID_SUBGRUPO,
+                                          mes
+                                        ) != "S"
+                                      }
                                       onChange={(e) =>
                                         handleChange(e, indicador, mes)
                                       }
@@ -626,17 +660,25 @@ function App() {
                               ))}
 
                               {/* Média do Trimestre */}
-                              <td className="uppercase px-4 py-2 border border-gray-500 text-center font-bold">
+                              <td className="uppercase px-4 py-2 border border-slate-500 text-center font-bold">
                                 {mediaTrimestre}
                               </td>
 
                               {tipoIndex === 0 && (
-                                <td
-                                  className="uppercase px-4 py-2 border border-gray-500 text-center font-medium"
-                                  rowSpan={3}
-                                >
-                                  {pesoFinal}
-                                </td>
+                                <>
+                                  <td
+                                    className="uppercase px-4 py-2 border border-slate-500 text-center font-medium"
+                                    rowSpan={3}
+                                  >
+                                    {pesoFinal}
+                                  </td>
+                                  <td
+                                    className="uppercase px-4 py-2 border border-slate-500 text-center font-medium"
+                                    rowSpan={3}
+                                  >
+                                    {indicador.PESO}
+                                  </td>
+                                </>
                               )}
                             </tr>
                           );
@@ -645,21 +687,31 @@ function App() {
                       isLastOfSubgrupo && (
                         <tr
                           key={`aderencia-${indicador.SUBGRUPO}-${index}`}
-                          className="bg-gray-900"
+                          className="bg-slate-900"
                         >
                           <td
                             colSpan={mesesDoTrimestre.length + 5}
-                            className="uppercase px-4 py-1 border bg-gray-300 border-gray-500 text-gray-900 font-semibold"
+                            className="uppercase px-4 py-1 border bg-yellow-200 dark:bg-slate-300 border-slate-500 text-slate-900 font-semibold"
                           >
                             ADERÊNCIA DO SETOR
                           </td>
-                          <td className="uppercase text-center border bg-gray-300 border-gray-500 text-gray-900 font-semibold">
+                          <td className="uppercase text-center border bg-yellow-200 dark:bg-slate-300 border-slate-500 text-slate-900 font-semibold">
                             {array
                               .filter((i) => i.SUBGRUPO === indicador.SUBGRUPO)
                               .reduce((acc, i) => {
+                                console.log(
+                                  "Processando indicador:",
+                                  i.INDICADOR
+                                );
+
                                 const valoresMeta = mesesDoTrimestre
                                   .map((mes) => Number(i.META[mes]))
                                   .filter((v) => !isNaN(v));
+
+                                console.log(
+                                  "Valores filtrados da Meta:",
+                                  valoresMeta
+                                );
 
                                 const mediaMeta = valoresMeta.length
                                   ? valoresMeta.reduce(
@@ -668,15 +720,33 @@ function App() {
                                     ) / valoresMeta.length
                                   : 0;
 
+                                console.log("Média da Meta:", mediaMeta);
+
                                 const valoresResultado = mesesDoTrimestre
-                                  .map((mes) =>
-                                    Number(
+                                  .map((mes) => {
+                                    let valorStr =
                                       resultados[
                                         `${i.ID_SUBGRUPO}-${i.ID_INDICAD}-${mes}`
-                                      ] ?? i.RESULTADO[mes]
-                                    )
-                                  )
-                                  .filter((v) => !isNaN(v));
+                                      ] ?? i.RESULTADO[mes];
+
+                                    if (valorStr == null || valorStr === "")
+                                      return null; // Evita erro
+
+                                    const valor = Number(
+                                      valorStr.toString().replace(",", ".")
+                                    );
+                                    console.log(
+                                      `Mês: ${mes}, Valor original: ${valorStr}, Valor convertido: ${valor}`
+                                    );
+
+                                    return isNaN(valor) ? null : valor; // Garante que só entra valores válidos
+                                  })
+                                  .filter((v) => v !== null);
+
+                                console.log(
+                                  "Valores filtrados do Resultado:",
+                                  valoresResultado
+                                );
 
                                 const mediaResultado = valoresResultado.length
                                   ? valoresResultado.reduce(
@@ -685,11 +755,18 @@ function App() {
                                     ) / valoresResultado.length
                                   : 0;
 
+                                console.log(
+                                  "Média do Resultado:",
+                                  mediaResultado
+                                );
+
                                 const metaOuLimite =
                                   typeof i.METAOULIMITE === "object"
                                     ? i.METAOULIMITE[mesesDoTrimestre[0]] ??
                                       "META"
                                     : i.METAOULIMITE;
+
+                                console.log("Meta ou Limite:", metaOuLimite);
 
                                 const resultado = Number(mediaResultado) || 0;
                                 const meta = Number(mediaMeta) || 0;
@@ -703,10 +780,15 @@ function App() {
                                     ? 0
                                     : i.PESO;
 
+                                console.log("Peso Final:", pesoFinal);
+
                                 return acc + pesoFinal * 100;
                               }, 0)
                               .toFixed(2)}
                             %
+                          </td>
+                          <td className="uppercase text-center border bg-yellow-200 dark:bg-slate-300 border-slate-500 text-slate-900 font-semibold">
+                            100%
                           </td>
                         </tr>
                       ),
@@ -715,7 +797,7 @@ function App() {
                 </tbody>
               </table>
             ) : (
-              <p className="text-gray-400 text-center mt-5">
+              <p className="text-slate-400 text-center mt-5">
                 Nenhum indicador disponível para este trimestre.
               </p>
             )}
@@ -723,7 +805,7 @@ function App() {
         </>
       ) : (
         <div className="min-h-screen flex flex-col items-center justify-center">
-          <h1 className="text-5xl text-white font-bold mb-8 tracking-wide">
+          <h1 className="text-5xl dark:text-white font-bold mb-8 tracking-wide">
             INDICADORES TRACT
           </h1>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 px-6">
@@ -736,7 +818,7 @@ function App() {
                   setListaIndicadores(true);
                   setIndicadores([]);
                 }}
-                className="bg-gradient-to-br cursor-pointer text-white p-6 rounded-xl shadow-lg border border-gray-600 transition-transform transform hover:scale-105 hover:shadow-2xl"
+                className="bg-gradient-to-br cursor-pointer dark:text-white p-6 rounded-xl shadow-lg border border-slate-600 transition-transform transform hover:scale-105 hover:shadow-2xl"
               >
                 <h2 className="text-xl font-semibold text-center">
                   {setor.SETOR}
