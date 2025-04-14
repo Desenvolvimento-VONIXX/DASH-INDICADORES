@@ -323,7 +323,7 @@ function App() {
         CASE 
         WHEN IND.HABILITADO IS NOT NULL THEN IND.HABILITADO 
         WHEN sankhya.Get_proximo_dia_util( 
-            DATEADD(DAY, 5, EOMONTH(DATEFROMPARTS(YEAR(GETDATE()), IND.ID_MESES, 1))), 
+            DATEADD(DAY, 15, EOMONTH(DATEFROMPARTS(YEAR(GETDATE()), IND.ID_MESES, 1))), 
             0, 0, 0 
         ) >= CAST(GETDATE() AS DATE) 
         THEN 'S' 
